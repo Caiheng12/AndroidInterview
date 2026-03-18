@@ -1,0 +1,48 @@
+# === Android / Gradle ===
+.gradle/
+build/
+*/build/
+
+# Local configuration
+local.properties
+gradle-local.properties
+
+# Log / temp files
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+.DS_Store
+
+# === Android Studio / IntelliJ IDEA ===
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android Studio caches
+.idea/caches/
+.idea/libraries/
+.idea/modules/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries/
+.idea/httpRequests/
+.idea/inspectionProfiles/
+
+# Captures
+captures/
+
+# Keystores (手动管理到安全位置，如需版本控制请删除这一条)
+*.jks
+*.keystore
+
+# NDK / CMake build
+.cxx/
+
+# Misc
+out/
+
