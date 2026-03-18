@@ -8,6 +8,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AndroidInterview">
         <activity
+            android:name=".FunctionDerivativeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AndroidInterview" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
@@ -19,4 +23,3 @@
     </application>
 
 </manifest>
-
