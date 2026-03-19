@@ -25,9 +25,32 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // 更多功能卡片点击事件
+        // 三项多项式测试卡片点击事件
         findViewById(R.id.cardMoreFeatures).setOnClickListener(v -> {
-            Toast.makeText(this, "更多功能即将推出", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(MainActivity.this, FunctionDerivativeActivity.class);
+            intent.putExtra("test_function", "x^2+x+1");
+            startActivity(intent);
+        });
+        
+        // 四项多项式测试卡片点击事件
+        findViewById(R.id.cardPolynomialTest).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, FunctionDerivativeActivity.class);
+            intent.putExtra("test_function", "x^3+x^2+x+1");
+            startActivity(intent);
+        });
+        
+        // 乘法法则测试卡片点击事件
+        findViewById(R.id.cardMultiplicationTest).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, FunctionDerivativeActivity.class);
+            intent.putExtra("test_function", "cos(x)*x");
+            startActivity(intent);
+        });
+        
+        // 复杂表达式测试卡片点击事件
+        findViewById(R.id.cardComplexTest).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, FunctionDerivativeActivity.class);
+            intent.putExtra("test_function", "cos(x)*x+sin(x)*x");
+            startActivity(intent);
         });
     }
 }

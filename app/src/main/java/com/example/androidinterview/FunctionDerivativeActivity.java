@@ -36,7 +36,7 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
     private ImageButton btnBack;
     private ChipGroup chipGroupDisplay;
     private Chip chipShowOriginal, chipShowDerivative;
-    
+
     private double currentXMin = 0.1;
     private double currentXMax = 10;
     private String currentFunction = "";
@@ -51,6 +51,13 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
         setupChart();
         setupExampleChips();
         setupListeners();
+
+        // 检查是否有测试函数
+        String testFunction = getIntent().getStringExtra("test_function");
+        if (testFunction != null && !testFunction.isEmpty()) {
+            etFunctionInput.setText(testFunction);
+            calculateDerivative(); // 自动计算
+        }
     }
 
     private void initViews() {
@@ -72,22 +79,22 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
 
     private void setupListeners() {
         btnBack.setOnClickListener(v -> finish()); // 返回上一页
-        
+
         btnCalculate.setOnClickListener(v -> calculateDerivative());
         btnApplyDomain.setOnClickListener(v -> applyDomain());
         btnUpdateChart.setOnClickListener(v -> updateChart());
-        
+
         // 设置默认选中状态
         chipShowOriginal.setChecked(true);
         chipShowDerivative.setChecked(true);
-        
+
         // 为每个Chip单独设置监听器
         chipShowOriginal.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!currentFunction.isEmpty()) {
                 updateChart();
             }
         });
-        
+
         chipShowDerivative.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!currentFunction.isEmpty()) {
                 updateChart();
@@ -100,53 +107,53 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
         chart.getLegend().setEnabled(true);
         chart.getDescription().setEnabled(false);
         chart.setDrawGridBackground(false);
-        
+
         // 设置坐标轴样式
         chart.getXAxis().setDrawGridLines(false);
         chart.getAxisLeft().setDrawGridLines(true);
         chart.getAxisRight().setEnabled(false);
-        
+
         // 设置坐标轴标签格式
         chart.getXAxis().setLabelCount(8, false);
         chart.getAxisLeft().setLabelCount(8, false);
     }
 
     private void setupExampleChips() {
-        findViewById(R.id.chipExample1).setOnClickListener(v -> 
-            etFunctionInput.setText("sin(x)"));
-        
-        findViewById(R.id.chipExample2).setOnClickListener(v -> 
-            etFunctionInput.setText("x^2 + 2*x"));
-        
-        findViewById(R.id.chipExample3).setOnClickListener(v -> 
-            etFunctionInput.setText("log(x)"));
-        
-        findViewById(R.id.chipExample4).setOnClickListener(v -> 
-            etFunctionInput.setText("exp(x)"));
-        
-        findViewById(R.id.chipExample5).setOnClickListener(v -> 
-            etFunctionInput.setText("cos(x) * x"));
+        findViewById(R.id.chipExample1).setOnClickListener(v ->
+                etFunctionInput.setText("sin(x)"));
+
+        findViewById(R.id.chipExample2).setOnClickListener(v ->
+                etFunctionInput.setText("x^2 + 2*x"));
+
+        findViewById(R.id.chipExample3).setOnClickListener(v ->
+                etFunctionInput.setText("log(x)"));
+
+        findViewById(R.id.chipExample4).setOnClickListener(v ->
+                etFunctionInput.setText("exp(x)"));
+
+        findViewById(R.id.chipExample5).setOnClickListener(v ->
+                etFunctionInput.setText("cos(x) * x"));
     }
 
     private void applyDomain() {
         try {
             double xMin = Double.parseDouble(etXMin.getText().toString());
             double xMax = Double.parseDouble(etXMax.getText().toString());
-            
+
             if (xMin >= xMax) {
                 Toast.makeText(this, "最小值必须小于最大值", Toast.LENGTH_SHORT).show();
                 return;
             }
-            
+
             currentXMin = xMin;
             currentXMax = xMax;
-            
+
             if (!currentFunction.isEmpty()) {
                 updateChart();
             }
-            
+
             Toast.makeText(this, "定义域已更新", Toast.LENGTH_SHORT).show();
-            
+
         } catch (NumberFormatException e) {
             Toast.makeText(this, "请输入有效的数字", Toast.LENGTH_SHORT).show();
         }
@@ -154,7 +161,7 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
 
     private void calculateDerivative() {
         String functionStr = etFunctionInput.getText().toString().trim();
-        
+
         if (functionStr.isEmpty()) {
             Toast.makeText(this, "请输入函数表达式", Toast.LENGTH_SHORT).show();
             return;
@@ -165,14 +172,14 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
         try {
             // 计算符号微分
             String symbolicDerivative = SymbolicDerivative.differentiate(functionStr);
-            String simplifiedDerivative = SymbolicDerivative.simplifyExpression(symbolicDerivative);
-            currentDerivative = simplifiedDerivative;
+            //String simplifiedDerivative = SymbolicDerivative.simplifyExpression(symbolicDerivative);
+            currentDerivative = symbolicDerivative;
 
             // 调试信息
             android.util.Log.d("FunctionDerivative", "原函数: " + functionStr);
             android.util.Log.d("FunctionDerivative", "符号微分结果: " + symbolicDerivative);
-            android.util.Log.d("FunctionDerivative", "简化后: " + simplifiedDerivative);
-            
+            android.util.Log.d("FunctionDerivative", "简化后: " + symbolicDerivative);
+
             // 测试几个常见函数
             if (functionStr.equals("x^2+2*x")) {
                 android.util.Log.d("FunctionDerivative", "测试: x^2+2*x 的导数应该是 2*x+2");
@@ -181,61 +188,39 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
             } else if (functionStr.equals("sin(x)")) {
                 android.util.Log.d("FunctionDerivative", "测试: sin(x) 的导数应该是 cos(x)");
             } else if (functionStr.equals("log(x)")) {
-                android.util.Log.d("FunctionDerivative", "测试: log(x) 的导数应该是 pow(x,-1) (自然对数)");
+                android.util.Log.d("FunctionDerivative", "测试: log(x) 的导数应该是 1/x (自然对数)");
             } else if (functionStr.equals("exp(x)")) {
                 android.util.Log.d("FunctionDerivative", "测试: exp(x) 的导数应该是 exp(x)");
             }
-            
-            // 测试exp4j解析
-            if (functionStr.equals("log(x)") && !simplifiedDerivative.contains("pow")) {
-                android.util.Log.e("FunctionDerivative", "ERROR: log(x)的导数应该是pow(x,-1)，但得到: " + simplifiedDerivative);
+
+            if (functionStr.equals("cos(x)*x")) {
+                android.util.Log.d("FunctionDerivative", "测试: cos(x)*x 的导数应该是 -sin(x)*x+cos(x)");
             }
-            
-            // 测试exp4j是否能解析不同格式
-            if (functionStr.equals("log(x)")) {
-                try {
-                    Expression testExp1 = new ExpressionBuilder("1/x").variable("x").build();
-                    testExp1.setVariable("x", 1.0);
-                    double result1 = testExp1.evaluate();
-                    android.util.Log.d("FunctionDerivative", "exp4j测试 1/x 在x=1时 = " + result1);
-                } catch (Exception e) {
-                    android.util.Log.e("FunctionDerivative", "exp4j无法解析1/x: " + e.getMessage());
-                }
-                
-                try {
-                    Expression testExp2 = new ExpressionBuilder("x^-1").variable("x").build();
-                    testExp2.setVariable("x", 1.0);
-                    double result2 = testExp2.evaluate();
-                    android.util.Log.d("FunctionDerivative", "exp4j测试 x^-1 在x=1时 = " + result2);
-                } catch (Exception e) {
-                    android.util.Log.e("FunctionDerivative", "exp4j无法解析x^-1: " + e.getMessage());
-                }
-                
-                try {
-                    Expression testExp3 = new ExpressionBuilder("pow(x,-1)").variable("x").build();
-                    testExp3.setVariable("x", 1.0);
-                    double result3 = testExp3.evaluate();
-                    android.util.Log.d("FunctionDerivative", "exp4j测试 pow(x,-1) 在x=1时 = " + result3);
-                } catch (Exception e) {
-                    android.util.Log.e("FunctionDerivative", "exp4j无法解析pow(x,-1): " + e.getMessage());
-                }
+
+            if (functionStr.equals("x^2/x")) {
+                android.util.Log.d("FunctionDerivative", "测试: x^2/x 的导数应该是 1");
+            }
+
+            if (functionStr.equals("cos(x)*x+sin(x)*x")) {
+                android.util.Log.d("FunctionDerivative", "测试: cos(x)*x+sin(x)*x 的导数应该是 (-sin(x)*x+cos(x))+(cos(x)*x+sin(x))");
             }
 
             // 显示函数信息
             tvOriginalFunction.setText("原函数: f(x) = " + functionStr);
-            tvDerivativeFunction.setText("微分函数: f'(x) = " + simplifiedDerivative);
+            tvDerivativeFunction.setText("微分函数: f'(x) = " + symbolicDerivative);
             llResults.setVisibility(View.VISIBLE);
 
             // 确保显示选项有默认选择并强制更新图表
             chipShowOriginal.setChecked(true);
             chipShowDerivative.setChecked(true);
-            
+
             // 延迟更新图表，确保UI状态已设置
             chipShowOriginal.post(() -> {
                 updateChart();
             });
-            
+
         } catch (Exception e) {
+            android.util.Log.e("FunctionDerivative", "求导失败", e);
             Toast.makeText(this, "函数解析错误: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
@@ -247,7 +232,7 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
 
         boolean showOriginal = chipShowOriginal.isChecked();
         boolean showDerivative = chipShowDerivative.isChecked();
-        
+
         // 调试信息
         android.util.Log.d("FunctionDerivative", "showOriginal: " + showOriginal + ", showDerivative: " + showDerivative);
 
@@ -279,13 +264,13 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
                     try {
                         expression.setVariable("x", x);
                         double y = expression.evaluate();
-                        
+
                         // 对于对数函数，只显示定义域内的值
                         if (functionStr.contains("log") && x <= 0) {
                             android.util.Log.d("FunctionDerivative", "跳过x=" + x + " (对数函数定义域外)");
                             continue; // 跳过负x和0
                         }
-                        
+
                         if (!Double.isNaN(y) && !Double.isInfinite(y)) {
                             functionEntries.add(new Entry((float) x, (float) y));
                         }
@@ -302,65 +287,82 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
                 dataSets.add(functionDataSet);
             }
 
-            // 绘制微分函数
+            // 绘制微分函数（修复：加强异常处理，避免空表达式崩溃）
             if (showDerivative) {
                 List<Entry> derivativeEntries = new ArrayList<>();
-                
-                // 优先使用符号微分结果，如果解析失败则使用数值微分
-                try {
-                    Expression derivativeExpression = new ExpressionBuilder(derivativeStr)
-                            .variable("x")
-                            .build();
 
-                    for (double x = currentXMin; x <= currentXMax; x += step) {
-                        try {
-                            derivativeExpression.setVariable("x", x);
-                            double y = derivativeExpression.evaluate();
-                            
-                            // 对于对数函数的导数，只显示定义域内的值
-                            if (functionStr.contains("log") && x <= 0) {
-                                android.util.Log.d("FunctionDerivative", "跳过导数x=" + x + " (对数函数定义域外)");
-                                continue; // 跳过负x和0
-                            }
-                            
-                            if (!Double.isNaN(y) && !Double.isInfinite(y)) {
-                                android.util.Log.d("FunctionDerivative", "添加导数点: x=" + x + ", y=" + y);
-                                derivativeEntries.add(new Entry((float) x, (float) y));
-                            }
-                        } catch (Exception e) {
-                            // 如果符号微分失败，使用数值微分
-                            double numericalDerivative = calculateNumericalDerivative(functionStr, x, h);
-                            
-                            // 对于对数函数的导数，只显示定义域内的值
-                            if (functionStr.contains("log") && x <= 0) {
-                                continue; // 跳过负x和0
-                            }
-                            
-                            if (!Double.isNaN(numericalDerivative) && !Double.isInfinite(numericalDerivative)) {
-                                derivativeEntries.add(new Entry((float) x, (float) numericalDerivative));
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    // 符号微分表达式解析失败，完全使用数值微分
-                    Expression originalExpression = new ExpressionBuilder(functionStr)
-                            .variable("x")
-                            .build();
-
+                // 先判断导数表达式是否有效
+                if (derivativeStr == null || derivativeStr.trim().isEmpty() || derivativeStr.equals("0")) {
+                    // 如果导数为空，直接用数值微分
+                    Expression originalExpression = new ExpressionBuilder(functionStr).variable("x").build();
                     for (double x = currentXMin; x <= currentXMax; x += step) {
                         try {
                             double numericalDerivative = calculateNumericalDerivative(originalExpression, x, h);
-                            
-                            // 对于对数函数的导数，只显示定义域内的值
-                            if (functionStr.contains("log") && x <= 0) {
-                                continue; // 跳过负x和0
-                            }
-                            
+                            if (functionStr.contains("log") && x <= 0) continue;
                             if (!Double.isNaN(numericalDerivative) && !Double.isInfinite(numericalDerivative)) {
                                 derivativeEntries.add(new Entry((float) x, (float) numericalDerivative));
                             }
                         } catch (Exception ex) {
                             continue;
+                        }
+                    }
+                } else {
+                    // 正常走符号微分解析流程
+                    try {
+                        Expression derivativeExpression = new ExpressionBuilder(derivativeStr)
+                                .variable("x")
+                                .build();
+
+                        for (double x = currentXMin; x <= currentXMax; x += step) {
+                            try {
+                                derivativeExpression.setVariable("x", x);
+                                double y = derivativeExpression.evaluate();
+
+                                // 对于对数函数的导数，只显示定义域内的值
+                                if (functionStr.contains("log") && x <= 0) {
+                                    android.util.Log.d("FunctionDerivative", "跳过导数x=" + x + " (对数函数定义域外)");
+                                    continue; // 跳过负x和0
+                                }
+
+                                if (!Double.isNaN(y) && !Double.isInfinite(y)) {
+                                    android.util.Log.d("FunctionDerivative", "添加导数点: x=" + x + ", y=" + y);
+                                    derivativeEntries.add(new Entry((float) x, (float) y));
+                                }
+                            } catch (Exception e) {
+                                // 符号微分失败，使用数值微分
+                                double numericalDerivative = calculateNumericalDerivative(functionStr, x, h);
+
+                                // 对于对数函数的导数，只显示定义域内的值
+                                if (functionStr.contains("log") && x <= 0) {
+                                    continue; // 跳过负x和0
+                                }
+
+                                if (!Double.isNaN(numericalDerivative) && !Double.isInfinite(numericalDerivative)) {
+                                    derivativeEntries.add(new Entry((float) x, (float) numericalDerivative));
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        // 符号微分表达式解析失败，完全使用数值微分
+                        Expression originalExpression = new ExpressionBuilder(functionStr)
+                                .variable("x")
+                                .build();
+
+                        for (double x = currentXMin; x <= currentXMax; x += step) {
+                            try {
+                                double numericalDerivative = calculateNumericalDerivative(originalExpression, x, h);
+
+                                // 对于对数函数的导数，只显示定义域内的值
+                                if (functionStr.contains("log") && x <= 0) {
+                                    continue; // 跳过负x和0
+                                }
+
+                                if (!Double.isNaN(numericalDerivative) && !Double.isInfinite(numericalDerivative)) {
+                                    derivativeEntries.add(new Entry((float) x, (float) numericalDerivative));
+                                }
+                            } catch (Exception ex) {
+                                continue;
+                            }
                         }
                     }
                 }
@@ -376,20 +378,18 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
             LineData data = new LineData(dataSets);
             chart.setData(data);
             chart.notifyDataSetChanged();
-            
+
             // 设置初始视图范围
             chart.getXAxis().setAxisMinimum((float) currentXMin);
             chart.getXAxis().setAxisMaximum((float) currentXMax);
-            
+
             // 自动调整Y轴范围
             chart.setAutoScaleMinMaxEnabled(true);
-            
+
             chart.invalidate();
-            
-            // 初始调整刻度
-           // adjustAxisLabels();
 
         } catch (Exception e) {
+            android.util.Log.e("FunctionDerivative", "绘图失败", e);
             Toast.makeText(this, "计算错误: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
@@ -411,36 +411,36 @@ public class FunctionDerivativeActivity extends AppCompatActivity {
             // f'(x) ≈ (f(x-2h) - 8f(x-h) + 8f(x+h) - f(x+2h)) / (12h)
             expression.setVariable("x", x - 2*h);
             double f_x_minus_2h = expression.evaluate();
-            
+
             expression.setVariable("x", x - h);
             double f_x_minus_h = expression.evaluate();
-            
+
             expression.setVariable("x", x + h);
             double f_x_plus_h = expression.evaluate();
-            
+
             expression.setVariable("x", x + 2*h);
             double f_x_plus_2h = expression.evaluate();
-            
+
             // 检查所有值都有效
             if (!Double.isNaN(f_x_minus_2h) && !Double.isInfinite(f_x_minus_2h) &&
-                !Double.isNaN(f_x_minus_h) && !Double.isInfinite(f_x_minus_h) &&
-                !Double.isNaN(f_x_plus_h) && !Double.isInfinite(f_x_plus_h) &&
-                !Double.isNaN(f_x_plus_2h) && !Double.isInfinite(f_x_plus_2h)) {
-                
+                    !Double.isNaN(f_x_minus_h) && !Double.isInfinite(f_x_minus_h) &&
+                    !Double.isNaN(f_x_plus_h) && !Double.isInfinite(f_x_plus_h) &&
+                    !Double.isNaN(f_x_plus_2h) && !Double.isInfinite(f_x_plus_2h)) {
+
                 return (f_x_minus_2h - 8*f_x_minus_h + 8*f_x_plus_h - f_x_plus_2h) / (12*h);
             }
-            
+
             // 如果五点法失败，使用中心差分
             expression.setVariable("x", x - h);
             double yMinus = expression.evaluate();
             expression.setVariable("x", x + h);
             double yPlus = expression.evaluate();
-            
-            if (!Double.isNaN(yMinus) && !Double.isInfinite(yMinus) && 
-                !Double.isNaN(yPlus) && !Double.isInfinite(yPlus)) {
+
+            if (!Double.isNaN(yMinus) && !Double.isInfinite(yMinus) &&
+                    !Double.isNaN(yPlus) && !Double.isInfinite(yPlus)) {
                 return (yPlus - yMinus) / (2 * h);
             }
-            
+
         } catch (Exception e) {
             // 忽略错误
         }
