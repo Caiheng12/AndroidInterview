@@ -1,15 +1,14 @@
-package com.example.androidinterview;
+package com.example.androidinterview.module.derivative.core;
 
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.example.androidinterview.module.simplifier.ExpressionSimplifier;
+
 /**
- * 终极完整版：
- * 1. 支持所有基础函数求导（sin/cos/tan/cot/sec/csc/arcsin/arccos/arctan/ln/log/exp/pow）
- * 2. 支持任意次幂（整数/小数/负数，如 x^0.5、x^-2）
- * 3. 定义域校验：只在原函数有效域内计算导数
- * 4. 保留常数*变量的*、除法求导、嵌套复合函数
+ * 符号求导核心模块
+ * 负责数学表达式的符号微分计算
  */
 public class SymbolicDerivative {
 
@@ -71,7 +70,7 @@ public class SymbolicDerivative {
         for (int i = 0; i < terms.size(); i++) {
             String term = terms.get(i).trim();
             String termDeriv = deriveSingleTerm(term);
-            String simplifiedTerm = simplifyTerm(termDeriv);
+            String simplifiedTerm = ExpressionSimplifier.simplifyTerm(termDeriv);
 
             if (!simplifiedTerm.equals("0")) {
                 validDerivTerms.add(simplifiedTerm);
@@ -82,7 +81,7 @@ public class SymbolicDerivative {
             }
         }
 
-        String derivExpr = combineTerms(validDerivTerms, signs);
+        String derivExpr = ExpressionSimplifier.combineLikeTerms(validDerivTerms, signs);
         // 第三步：如果导数表达式为空，返回0
         return derivExpr.isEmpty() ? "0" : derivExpr;
     }
@@ -168,9 +167,6 @@ public class SymbolicDerivative {
 
             // 适配 pow(x,a) → Math.pow(x,a)
             expr = expr.replaceAll("pow\\(([^,]+),([^)]+)\\)", "Math.pow($1,$2)");
-            
-            // 替换x为具体数值（这里简化处理，实际应该传入x值）
-            // 由于这是定义域校验，我们假设x已经在调用处被替换
             
             // 简单的数值解析（支持基础运算）
             if (expr.matches("-?\\d+(\\.\\d+)?")) {
@@ -300,10 +296,16 @@ public class SymbolicDerivative {
         }
 
         // ✅ 支持所有基础复合函数（含pow）
-        Matcher funcMatcher = Pattern.compile("(sin|cos|tan|cot|sec|csc|arcsin|arccos|arctan|ln|log|exp)\\((.+)\\)").matcher(term);
+        Matcher funcMatcher = Pattern.compile("(sin|cos|tan|cot|sec|csc|arcsin|arccos|arctan|ln|log|exp|pow)\\((.+)\\)").matcher(term);
         if (funcMatcher.matches()) {
             String func = funcMatcher.group(1);
             String innerExpr = funcMatcher.group(2);
+            
+            // 特殊处理pow函数的复合形式：pow(f(x), g(x))
+            if (func.equals("pow")) {
+                return derivePowComposite(innerExpr);
+            }
+            
             String outerDeriv = DERIV_RULES.get(func).replace("{arg}", innerExpr);
             String innerDeriv = deriveSingleTerm(innerExpr);
             return innerDeriv.equals("1") ? outerDeriv : "(" + outerDeriv + ")*(" + innerDeriv + ")";
@@ -323,68 +325,218 @@ public class SymbolicDerivative {
         return "0";
     }
 
-    // ===================== 简化项 =====================
-    private static String simplifyTerm(String term) {
-        if (term == null || term.isEmpty()) return "0";
-
-        // 纯数字直接保留
-        if (term.matches("-?\\d+(\\.\\d+)?")) {
-            return term.replaceAll("(\\d+)\\.0", "$1");
+    // ===================== pow复合函数求导 =====================
+    private static String derivePowComposite(String innerExpr) {
+        // 使用新的splitPowArgs方法解析 pow(f(x), g(x)) 形式
+        String[] args = splitPowArgs(innerExpr);
+        if (args.length != 2 || args[0].isEmpty() || args[1].isEmpty()) {
+            return "0"; // 无法解析，返回0
         }
-
-        String[] subTerms = term.split("(?=[+-])");
-        StringBuilder sb = new StringBuilder();
-
-        for (String subTerm : subTerms) {
-            String simplifiedSub = subTerm.trim();
-            if (simplifiedSub.isEmpty()) continue;
-
-            // 过滤纯0项
-            if (simplifiedSub.equals("0") || simplifiedSub.startsWith("0*") || simplifiedSub.startsWith("(0)*")) {
-                continue;
+        
+        String base = args[0];
+        String exponent = args[1];
+        
+        // 判断base和exponent是否包含变量
+        boolean baseHasVariable = containsVariable(base);
+        boolean exponentHasVariable = containsVariable(exponent);
+        
+        // 情况1：只有第一项含变量，第二项是常数
+        if (baseHasVariable && !exponentHasVariable) {
+            // 导数：a*pow(f(x),a-1)*(f(x)的导数)，其中a为常数
+            return derivePowCase1(base, exponent);
+        }
+        
+        // 情况2：只有第二项含变量，第一项是常数
+        if (!baseHasVariable && exponentHasVariable) {
+            // 导数：ln(a)*pow(a,f(x))*(f(x)的导数)，其中a为常数
+            return derivePowCase2(base, exponent);
+        }
+        
+        // 情况3：pow(f(x),g(x))两项都含变量
+        if (baseHasVariable && exponentHasVariable) {
+            // 导数：pow(f(x),g(x))*{(g(x)的导数)*ln(f(x))+g(x)*(f(x)的导数)/f(x)}
+            return derivePowCase3(base, exponent);
+        }
+        
+        // 都不含变量（常数），导数为0
+        return "0";
+    }
+    
+    // 情况1：只有第一项含变量，第二项是常数
+    private static String derivePowCase1(String base, String exponent) {
+        // 验证exponent是否为常数（支持小数）
+        if (!isConstant(exponent)) {
+            return "0"; // 如果不是常数，按情况3处理
+        }
+        
+        String baseDeriv = differentiateInternal(base); // 使用完整的求导方法支持多项式
+        if (baseDeriv.equals("0")) {
+            return "0";
+        }
+        
+        // a*pow(f(x),a-1)*(f(x)的导数)
+        StringBuilder result = new StringBuilder();
+        
+        // 系数a
+        if (!exponent.equals("1")) {
+            result.append(exponent).append("*");
+        }
+        
+        // pow(f(x),a-1) - 统一使用pow格式
+        String newExponent = exponent.equals("1") ? "0" : "(" + exponent + "-1)";
+        result.append("pow(").append(base).append(",").append(newExponent).append(")");
+        
+        // *(f(x)的导数)
+        if (!baseDeriv.equals("1")) {
+            result.append("*(").append(baseDeriv).append(")");
+        }
+        
+        // 应用化简器进行最终化简（包括合并同类项）
+        return ExpressionSimplifier.finalSimplify(result.toString());
+    }
+    
+    // 情况2：只有第二项含变量，第一项是常数
+    private static String derivePowCase2(String base, String exponent) {
+        // 验证base是否为常数（支持小数）
+        if (!isConstant(base)) {
+            return "0"; // 如果不是常数，按情况3处理
+        }
+        
+        String exponentDeriv = differentiateInternal(exponent); // 使用完整的求导方法支持多项式
+        if (exponentDeriv.equals("0")) {
+            return "0";
+        }
+        
+        // ln(a)*pow(a,f(x))*(f(x)的导数)
+        StringBuilder result = new StringBuilder();
+        
+        // ln(a)
+        result.append("ln(").append(base).append(")*");
+        
+        // pow(a,f(x))
+        result.append("pow(").append(base).append(",").append(exponent).append(")");
+        
+        // *(f(x)的导数)
+        if (!exponentDeriv.equals("1")) {
+            result.append("*(").append(exponentDeriv).append(")");
+        }
+        
+        // 应用化简器进行最终化简（包括合并同类项）
+        return ExpressionSimplifier.finalSimplify(result.toString());
+    }
+    
+    // 情况3：pow(f(x),g(x))两项都含变量
+    private static String derivePowCase3(String base, String exponent) {
+        String baseDeriv = differentiateInternal(base); // 使用完整求导方法
+        String exponentDeriv = differentiateInternal(exponent); // 使用完整求导方法
+        
+        // 如果两个导数都是0，结果为0
+        if (baseDeriv.equals("0") && exponentDeriv.equals("0")) {
+            return "0";
+        }
+        
+        // pow(f(x),g(x))*{(g(x)的导数)*ln(f(x))+g(x)*(f(x)的导数)/f(x)}
+        StringBuilder result = new StringBuilder();
+        result.append("pow(").append(base).append(",").append(exponent).append(")");
+        result.append("*(");
+        
+        boolean hasFirstTerm = !exponentDeriv.equals("0");
+        boolean hasSecondTerm = !baseDeriv.equals("0");
+        
+        // 第一项：(g(x)的导数)*ln(f(x))
+        if (hasFirstTerm) {
+            if (!exponentDeriv.equals("1")) {
+                result.append("(").append(exponentDeriv).append(")");
             }
-
-            // 简化冗余
-            simplifiedSub = simplifiedSub.replaceAll("\\(1\\)", "1")
-                    .replaceAll("\\*1(?=$|\\+|\\-|\\*|/|\\))", "")
-                    .replaceAll("(?<=^|\\+|\\-|\\*|/|\\()1\\*", "")
-                    .replaceAll("(?<=^|\\+|\\-|\\*|/|\\()-1\\*", "-")
-                    .replaceAll("(x)\\^1\\b", "$1")
-                    .replaceAll("(\\d+)\\.0\\b", "$1");
-
-            if (!simplifiedSub.isEmpty()) {
-                sb.append(simplifiedSub);
+            result.append("*ln(").append(base).append(")");
+        }
+        
+        // 第二项：g(x)*(f(x)的导数)/f(x)
+        if (hasSecondTerm) {
+            if (hasFirstTerm) {
+                result.append("+");
+            }
+            result.append(exponent).append("*(").append(baseDeriv).append(")/").append(base);
+        }
+        
+        result.append(")");
+        
+        // 应用化简器进行最终化简（包括合并同类项）
+        return ExpressionSimplifier.finalSimplify(result.toString());
+    }
+    
+    // 辅助方法：判断表达式是否包含变量
+    private static boolean containsVariable(String expr) {
+        // 简单检查是否包含变量x
+        if (expr.contains("x")) {
+            // 排除纯数字中的x（如sin中的x是变量）
+            return true;
+        }
+        
+        // 检查是否包含其他函数（这些函数内部通常包含变量）
+        return expr.contains("sin(") || expr.contains("cos(") || 
+               expr.contains("tan(") || expr.contains("ln(") || 
+               expr.contains("log(") || expr.contains("exp(") || 
+               expr.contains("pow(") || expr.contains("sqrt(");
+    }
+    
+    // 辅助方法：找到括号外的逗号位置
+    private static int findCommaOutsideParentheses(String expr) {
+        int parenCount = 0;
+        for (int i = 0; i < expr.length(); i++) {
+            char c = expr.charAt(i);
+            if (c == '(') parenCount++;
+            else if (c == ')') parenCount--;
+            else if (c == ',' && parenCount == 0) {
+                return i;
             }
         }
-
-        String result = sb.toString()
-                .replaceAll("\\+\\-", "-")
-                .replaceAll("-\\+", "-")
-                .replaceAll("--", "+")
-                .replaceAll("^\\+", "");
-
-        return result.isEmpty() ? "0" : result;
+        return -1;
     }
 
-    // ===================== 拼接项和符号 =====================
-    private static String combineTerms(List<String> validTerms, List<Character> signs) {
-        if (validTerms.isEmpty()) return "0";
-        if (validTerms.size() == 1) return validTerms.get(0);
-
-        StringBuilder sb = new StringBuilder();
-        int signIdx = 0;
-        for (int i = 0; i < validTerms.size(); i++) {
-            sb.append(validTerms.get(i));
-            if (signIdx < signs.size() && i < validTerms.size() - 1) {
-                sb.append(signs.get(signIdx++));
+    // 安全拆分 pow(a,b) 的参数，处理括号和加减表达式
+    private static String[] splitPowArgs(String inner) {
+        int parenCount = 0;
+        int splitIndex = -1;
+        for (int i = 0; i < inner.length(); i++) {
+            char c = inner.charAt(i);
+            if (c == '(') parenCount++;
+            if (c == ')') parenCount--;
+            // 只在最外层逗号处拆分，忽略括号内的逗号
+            if (c == ',' && parenCount == 0) {
+                splitIndex = i;
+                break;
             }
         }
-        return sb.toString();
+        if (splitIndex == -1) return new String[]{"", ""};
+        return new String[]{
+            inner.substring(0, splitIndex).trim(),  // 底数（支持加减，如 x-1）
+            inner.substring(splitIndex + 1).trim()  // 指数（支持 1/2, 0.5）
+        };
     }
 
     // ===================== 辅助方法 =====================
-    private static boolean isConstant(String s) {
-        return s.matches("-?\\d+(\\.\\d+)?");
+    // 判断是否为纯常数（不含x，且是数字/分数）
+    private static boolean isConstant(String expr) {
+        if (expr == null) return false;
+        String trimmed = expr.trim();
+        // 含x → 一定不是常数
+        if (trimmed.contains("x")) return false;
+        // 匹配：整数、小数、分数（如 2, 3.14, 1/2, -0.5）
+        return trimmed.matches("-?\\d+(\\.\\d+)?") || trimmed.matches("-?\\d+/\\d+");
+    }
+
+    // 解析常数为double（支持分数/小数）
+    private static double parseConstant(String s) {
+        if (s == null || s.isEmpty()) return 0;
+        String trimmed = s.trim();
+        if (trimmed.contains("/")) {
+            String[] parts = trimmed.split("/");
+            double num = Double.parseDouble(parts[0]);
+            double den = Double.parseDouble(parts[1]);
+            return num / den;
+        }
+        return Double.parseDouble(trimmed);
     }
 
     private static List<String> splitByMul(String term) {
@@ -431,21 +583,27 @@ public class SymbolicDerivative {
         }
     }
 
-    // ===================== 测试 =====================
-    public static void main(String[] args) {
-        // 测试1：负数次幂 x^-2 → -2*x^-3
-        System.out.println("x^-2 → " + differentiate("x^-2", 1));
-
-        // 测试2：小数次幂 x^0.5 → 0.5*x^-0.5
-        System.out.println("x^0.5 → " + differentiate("x^0.5", 4));
-
-        // 测试3：对数（定义域校验 x=0 → 无意义）
-        System.out.println("ln(x) → " + differentiate("ln(x)", 0));
-
-        // 测试4：反三角函数（x=2 超出[-1,1] → 无意义）
-        System.out.println("arcsin(x) → " + differentiate("arcsin(x)", 2));
-
-        // 测试5：复合函数 cot(x) → -1/(sin(x))^2
-        System.out.println("cot(x) → " + differentiate("cot(x)", Math.PI/4));
+    // 组合项的方法
+    private static String combineTerms(List<String> terms, List<Character> signs) {
+        if (terms.isEmpty()) return "0";
+        if (terms.size() == 1) {
+            String term = terms.get(0);
+            return signs.get(0) == '-' ? "-" + term : term;
+        }
+        
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < terms.size(); i++) {
+            if (i > 0) {
+                result.append(signs.get(i));
+            } else {
+                if (signs.get(i) == '-') {
+                    result.append("-");
+                }
+            }
+            result.append(terms.get(i));
+        }
+        
+        return result.toString();
     }
+
 }
