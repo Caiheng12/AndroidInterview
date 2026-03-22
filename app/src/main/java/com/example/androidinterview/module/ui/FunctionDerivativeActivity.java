@@ -1,4 +1,4 @@
-package com.example.androidinterview;
+package com.example.androidinterview.module.ui;
 
 import android.os.Bundle;
 import android.view.View;
@@ -19,15 +19,15 @@ import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 
+import com.example.androidinterview.R;
+import com.example.androidinterview.module.derivative.core.SymbolicDerivative;
+import com.example.androidinterview.module.mapper.FunctionMapper;
+import com.example.androidinterview.module.plotter.FunctionPlotter;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import com.example.androidinterview.module.derivative.core.SymbolicDerivative;
-import com.example.androidinterview.module.mapper.FunctionMapper;
-import com.example.androidinterview.module.plotter.FunctionPlotter;
 
 public class FunctionDerivativeActivity extends AppCompatActivity {
 

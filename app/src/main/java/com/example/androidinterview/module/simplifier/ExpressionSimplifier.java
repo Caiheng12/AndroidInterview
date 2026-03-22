@@ -164,7 +164,11 @@ public class ExpressionSimplifier {
     public static String finalSimplify(String expr) {
         if (expr == null || expr.isEmpty()) return "0";
         
-        // 应用所有化简规则到最终结果
+        // 先处理0乘法，但要小心不要错误删除
+        expr = expr.replaceAll("\\b0\\*[^+\\-*/]+", "0")
+                .replaceAll("[^+\\-*/]+\\*0\\b", "0");
+        
+        // 应用其他化简规则
         expr = expr.replaceAll("\\(1\\)", "1")
                 .replaceAll("\\*1(?=$|\\+|\\-|\\*|/|\\))", "")
                 .replaceAll("(?<=^|\\+|\\-|\\*|/|\\()1\\*", "")
@@ -173,10 +177,6 @@ public class ExpressionSimplifier {
                 .replaceAll("(\\d+)\\.0\\b", "$1")
                 .replaceAll("-1(?=\\w)", "-")
                 .replaceAll("\\(0\\)", "0")
-                .replaceAll("\\*0(?=$|\\+|\\-|\\*|/|\\))", "")
-                .replaceAll("(?<=^|\\+|\\-|\\*|/|\\()0\\*", "")
-                .replaceAll("(?<=^|\\+|\\-|\\*|/|\\()0\\+", "")
-                .replaceAll("(?<=^|\\+|\\-|\\*|/|\\()0\\-", "-")
                 // 新增：x/x → 1
                 .replaceAll("x/x", "1")
                 // 新增：(x-x) → 0
@@ -187,6 +187,19 @@ public class ExpressionSimplifier {
                 .replaceAll("\\*\\*", "*")
                 .replaceAll("\\+\\*", "+")
                 .replaceAll("-\\*", "-");
+        
+        // 处理0+和0-的情况
+        expr = expr.replaceAll("^0\\+", "")
+                .replaceAll("(?<=\\+)0\\+", "+")
+                .replaceAll("(?<=\\-)0\\+", "+")
+                .replaceAll("^0\\-", "-")
+                .replaceAll("(?<=\\+)0\\-", "-")
+                .replaceAll("(?<=\\-)0\\-", "-");
+        
+        // 处理结尾的0
+        expr = expr.replaceAll("\\+0$", "")
+                .replaceAll("-0$", "")
+                .replaceAll("^0$", "0");
         
         // 处理特殊情况：0/(anything) → 0
         if (expr.startsWith("0/")) {
